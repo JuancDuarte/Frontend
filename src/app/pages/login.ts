@@ -25,7 +25,7 @@ export class Login {
   entrar() {
     this.cargando.set(true); this.error.set('');
     this.auth.login(this.u, this.p).subscribe({
-      next: ok => ok ? this.router.navigate(['/']) : (this.cargando.set(false), this.error.set('No se encontró tu estudiante. Pide que el token incluya el claim estudianteId')),
+      next: ok => ok ? this.router.navigate(['/']) : (this.cargando.set(false), this.error.set('Tu usuario no está vinculado a un estudiante. Pide al administrador que lo asocie (estudianteId).')),
       error: e => { this.cargando.set(false); this.error.set(e.status === 401 ? 'Usuario o contraseña incorrectos' : 'No se pudo conectar con el servidor'); }
     });
   }
