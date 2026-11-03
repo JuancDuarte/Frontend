@@ -1,2 +1,4 @@
-// Reemplaza por la URL HTTPS pública del Gateway en la nube
-export const environment = { gatewayUrl: 'https://TU-GATEWAY.example.com' };
+export const environment = {
+  production: true,
+  gatewayUrl: 'https://ap-e20b29aef2e243c3a29893b305c95397.ecs.us-east-2.on.aws'
+};
