@@ -12,6 +12,7 @@ export const routes: Routes = [
     { path: 'perfil', loadComponent: () => import('./pages/perfil').then(m => m.Perfil) },
     { path: 'pendientes', loadComponent: () => import('./pages/pendientes').then(m => m.Pendientes) },
     { path: 'buscar', loadComponent: () => import('./pages/buscar').then(m => m.Buscar) },
+    { path: 'inscribir', loadComponent: () => import('./pages/inscribir').then(m => m.Inscribir) },
   ]},
   { path: '**', redirectTo: '' }
 ];

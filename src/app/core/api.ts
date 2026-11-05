@@ -19,8 +19,15 @@ export class Api {
     if (periodo) params.periodo = periodo;
     return this.http.get<any>(`${B}/api/materias/cursos`, { params }).pipe(map(r => (r.content ?? r) as any[]));
   }
-  inscribir(estudianteId: number, cursoId: number, periodo: string) {
-    return this.http.post<any>(`${B}/api/inscripciones`, { estudianteId, cursoId, periodo });
+  /** Oferta completa de un periodo (sin filtrar por materia). */
+  cursosPeriodo(periodo?: string) {
+    const params: any = { pageNumber: 0, pageSize: 500 };
+    if (periodo) params.periodo = periodo;
+    return this.http.get<any>(`${B}/api/materias/cursos`, { params }).pipe(map(r => (r.content ?? r) as any[]));
+  }
+  /** Inscripción del estudiante autenticado: el gateway toma el id del token. */
+  inscribir(cursoId: number, periodo: string) {
+    return this.http.post<any>(`${B}/api/inscripciones/mias`, { cursoId, periodo });
   }
 
   // ---- Archivos (ajustar rutas cuando el grupo publique estos endpoints) ----

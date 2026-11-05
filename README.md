@@ -5,7 +5,9 @@ npm install
 npm start            # http://localhost:4200  (Gateway en environment.ts)
 npm run build        # genera dist/app/browser -> subir a hosting estático
 ```
-Antes de desplegar, edita `src/environments/environment.prod.ts` con la URL HTTPS del Gateway.
+La URL del Gateway ya está configurada en `src/environments/environment.prod.ts`:
+`https://d3rcwchnofo5q2.cloudfront.net`.
+Al construir la imagen Docker se puede sobreescribir con `--build-arg GATEWAY_URL=...`.
 Recuerda habilitar CORS en el Gateway para el origen del frontend.
 
 ## Puntos a ajustar con su API real

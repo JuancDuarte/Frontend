@@ -11,34 +11,114 @@ const EST: any = { active: 'MATRICULADO', inactive: 'INACTIVO' };
 
 @Component({
   selector: 'app-perfil',
-  styles: [`fieldset{border:1px solid #d8d8d8;border-radius:6px;margin:0 0 14px;padding:12px 24px 8px;background:#fff}
-  legend{color:#777;padding:0 8px;font-size:16px}.top{display:flex;gap:40px;flex-wrap:wrap}.col{flex:1;min-width:320px}
-  .foto{width:340px;max-width:100%;height:340px;border:5px solid #ffc926;object-fit:cover;background:#ddd;display:block}
-  .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px 40px;padding:14px 0}.g b{margin-right:4px}`],
-  template: `<h1>Datos Personales</h1>
-  @if (error()) { <div class="err">{{error()}}</div> }
-  <fieldset><legend>Información del {{auth.esDocente ? 'Docente' : 'Estudiante'}}</legend>
-   <div class="top" style="padding:14px 0">
-    <div>@if (foto()) { <img class="foto" [src]="foto()" alt="Foto"> } @else { <div class="foto"></div> }
-     @if (!auth.esDocente) {
-      <input #f type="file" accept="image/jpeg,image/png" hidden (change)="subir(f.files)">
-      <button class="btn sm" style="margin-top:10px" (click)="f.click()">Cambiar foto</button>
-      @if (msg()) { <div [class]="ok() ? 'ok' : 'err'">{{msg()}}</div> } }</div>
-    <div class="col">@for (g of grupos().slice(0, 2); track g.titulo) {
-      <fieldset><legend>{{g.titulo}}</legend><div class="g">@for (c of g.campos; track c.l) { <div><b>{{c.l}}:</b>{{c.v ?? '—'}}</div> }</div></fieldset> }</div>
-   </div>
-   @for (g of grupos().slice(2); track g.titulo) {
-    <fieldset><legend>{{g.titulo}}</legend><div class="g">@for (c of g.campos; track c.l) { <div><b>{{c.l}}:</b>{{c.v ?? '—'}}</div> }</div></fieldset> }
-  </fieldset>
-  @if (auth.esDocente) {
-   <div class="card"><h3>Mis cursos</h3><table><thead><tr><th>Curso</th><th>Materia</th><th>Horario</th><th>Periodo</th><th>Cupo</th></tr></thead><tbody>
-    @for (c of cursos(); track c.id) { <tr><td>{{c.id}}</td><td>{{c.nombre ?? c.materia?.nombre}}</td><td>{{c.horario}}</td><td>{{c.periodo}}</td><td>{{c.cupo}}</td></tr> }
-    @empty { <tr><td colspan="5" class="muted">Sin cursos asignados</td></tr> }</tbody></table></div> }`
+  template: `
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">Cuenta</span>
+        <h1>Datos personales</h1>
+        <p>Información registrada en el sistema académico de la universidad.</p>
+      </div>
+    </div>
+
+    @if (error()) { <div class="err">{{error()}}</div> }
+
+    <div class="card">
+      <div class="profile">
+        <div class="photo-col">
+          @if (foto()) {
+            <img class="photo" [src]="foto()" alt="Foto de perfil">
+          } @else {
+            <div class="photo" aria-hidden="true">{{ini()}}</div>
+          }
+
+          @if (!auth.esDocente) {
+            <input #f type="file" accept="image/jpeg,image/png" hidden (change)="subir(f.files)">
+            <button class="btn out sm" (click)="f.click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V10"/><path d="m8 14 4-4 4 4"/><path d="M4 5h16"/></svg>
+              Cambiar foto
+            </button>
+          }
+
+          @if (msg()) { <div [class]="ok() ? 'ok' : 'err'" style="margin-top:12px">{{msg()}}</div> }
+        </div>
+
+        <div class="info">
+          <div class="who">
+            <h2>{{auth.nombre || 'Usuario'}}</h2>
+            <span class="badge s-brand">{{auth.rol || 'USUARIO'}}</span>
+          </div>
+
+          @if (grupos().length) {
+            <div class="fields">
+              @for (c of grupos()[0].campos; track c.l) {
+                <div class="field-row"><small>{{c.l}}</small><div>{{c.v ?? '—'}}</div></div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      @for (g of grupos().slice(1); track g.titulo) {
+        <div class="card">
+          <div class="card-head">
+            <h2>{{g.titulo}}</h2>
+          </div>
+          <div class="card-body">
+            <div class="fields">
+              @for (c of g.campos; track c.l) {
+                <div class="field-row"><small>{{c.l}}</small><div>{{c.v ?? '—'}}</div></div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (auth.esDocente) {
+      <div class="card">
+        <div class="card-head">
+          <h2>Mis cursos</h2>
+          <span class="badge">{{cursos().length}} cursos</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Curso</th><th>Materia</th><th>Horario</th><th>Periodo</th><th class="center">Cupo</th></tr>
+            </thead>
+            <tbody>
+              @for (c of cursos(); track c.id) {
+                <tr><td class="mono">{{c.id}}</td><td><b>{{c.nombre ?? c.materia?.nombre}}</b></td><td>{{c.horario}}</td><td class="mono">{{c.periodo}}</td><td class="center tnum">{{c.cupo}}</td></tr>
+              } @empty {
+                <tr>
+                  <td colspan="5">
+                    <div class="empty">
+                      <strong>Sin cursos asignados</strong>
+                      <span>No tienes cursos en el periodo actual.</span>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  </div>`
 })
 export class Perfil implements OnInit {
   private api = inject(Api); auth = inject(Auth);
   grupos = signal<Grupo[]>([]); cursos = signal<any[]>([]); foto = signal(''); error = signal(''); msg = signal(''); ok = signal(false);
+
   ngOnInit() { this.auth.esDocente ? this.cargarDocente() : this.cargarEstudiante(); }
+
+  ini() {
+    const n = (this.auth.nombre || '').trim();
+    const p = n.split(/\s+/).filter(Boolean);
+    return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase() || 'U';
+  }
 
   cargarEstudiante() {
     const id = this.auth.estudianteId;
@@ -46,15 +126,15 @@ export class Perfil implements OnInit {
       next: ([d, c]) => {
         const e = d.estudiante ?? {}; this.foto.set(e.fotoUrl ?? d.fotoUrl ?? '');
         this.grupos.set([
-          { titulo: 'Datos Personales', campos: [
+          { titulo: 'Datos personales', campos: [
             { l: 'Nombres', v: e.firstName?.toUpperCase() }, { l: 'Apellidos', v: e.lastName?.toUpperCase() },
-            { l: 'Código', v: e.codigo ?? e.id }, { l: 'Estado Académico', v: EST[e.status] ?? e.status },
-            { l: 'Género', v: GEN[e.gender] ?? e.gender }, { l: 'Tipo Documento', v: TIPO[e.documentType] ?? e.documentType },
+            { l: 'Código', v: e.codigo ?? e.id }, { l: 'Estado académico', v: EST[e.status] ?? e.status },
+            { l: 'Género', v: GEN[e.gender] ?? e.gender }, { l: 'Tipo documento', v: TIPO[e.documentType] ?? e.documentType },
             { l: 'Documento', v: e.documentNumber }, { l: 'Fecha de nacimiento', v: e.birthDate }] },
-          { titulo: 'Datos del Programa', campos: [
-            { l: 'Nombre Programa', v: e.programa?.toUpperCase() }, { l: 'Código', v: e.programId },
+          { titulo: 'Datos del programa', campos: [
+            { l: 'Nombre programa', v: e.programa?.toUpperCase() }, { l: 'Código', v: e.programId },
             { l: 'Sede', v: e.sede }, { l: 'Jornada', v: e.jornada }] },
-          { titulo: 'Datos de Contacto', campos: [
+          { titulo: 'Datos de contacto', campos: [
             { l: 'Dirección', v: c.direccion ?? c.address }, { l: 'Teléfono', v: c.telefono ?? c.phone },
             { l: 'Contacto de emergencia', v: c.contactoEmergencia ?? c.emergencyContact }, { l: 'Correo', v: e.email }] }
         ]);
@@ -65,7 +145,7 @@ export class Perfil implements OnInit {
   cargarDocente() {
     const id = this.auth.docenteId;
     this.api.docente(id).subscribe({
-      next: d => this.grupos.set([{ titulo: 'Datos Personales', campos: [
+      next: d => this.grupos.set([{ titulo: 'Datos personales', campos: [
         { l: 'Nombre', v: (d.nombre ?? this.auth.nombre)?.toUpperCase() }, { l: 'Código', v: d.id },
         { l: 'Correo', v: d.email ?? d.correo }, { l: 'Departamento', v: d.departamento }] }]),
       error: () => this.error.set('No se pudo cargar el perfil')
