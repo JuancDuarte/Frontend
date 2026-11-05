@@ -1,6 +1,14 @@
-import { Component, HostListener, inject, signal } from '@angular/core';
+import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Api } from '../core/api';
 import { Auth } from '../core/auth';
+
+/** Nombre legible a partir de la ficha del estudiante o, en su defecto, de los claims. */
+const nombreCompleto = (e: any): string => {
+  const directo = `${e?.nombre ?? ''}`.trim();
+  if (directo) return directo;
+  return `${e?.firstName ?? ''} ${e?.lastName ?? ''}`.replace(/\s+/g, ' ').trim();
+};
 
 @Component({
   selector: 'app-shell',
@@ -92,14 +100,20 @@ import { Auth } from '../core/auth';
       min-width: 0;
     }
 
-    .who {
-      max-width: 190px;
+    /* Nombre del titular: misma altura de línea que el avatar para centrarse con la inicial */
+    .user-name {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      max-width: 200px;
+      margin: 0;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: rgba(255, 255, 255, .7);
+      color: rgba(255, 255, 255, .72);
       font-size: 12.5px;
+      line-height: 1;
       letter-spacing: -.005em;
+      white-space: nowrap;
+      text-overflow: ellipsis;
     }
 
     .avatar {
@@ -114,6 +128,7 @@ import { Auth } from '../core/auth';
       color: var(--gold);
       font-size: 11px;
       font-weight: 600;
+      line-height: 1;
       letter-spacing: .05em;
     }
 
@@ -327,7 +342,7 @@ import { Auth } from '../core/auth';
     @media (max-width: 620px) {
       .in { gap: 10px; padding: 0 16px; }
       .brand img { width: 88px; }
-      .who { display: none; }
+      .user-name { display: none; }
       .sheet { padding: 6px 18px 32px; }
       .sheet a.sheet-link { font-size: 21px; padding: 15px 2px; }
     }
@@ -350,7 +365,7 @@ import { Auth } from '../core/auth';
       </a>
 
       <div class="me">
-        <span class="who">{{ auth.nombre || 'Usuario' }}</span>
+        <span class="user-name" [title]="nombre()">{{ nombre() }}</span>
         <span class="avatar" aria-hidden="true">{{ ini() }}</span>
         <button class="logout" type="button" (click)="auth.logout()" aria-label="Cerrar sesión" title="Cerrar sesión">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
@@ -434,7 +449,7 @@ import { Auth } from '../core/auth';
 
       <div class="sheet-in sheet-foot">
         <div class="id">
-          <b>{{ auth.nombre || 'Usuario' }}</b>
+          <b>{{ nombre() }}</b>
           <em>{{ auth.esAdmin ? 'Administrador' : 'Estudiante' }}</em>
         </div>
         <button class="sheet-out" type="button" (click)="auth.logout()">
@@ -455,15 +470,34 @@ import { Auth } from '../core/auth';
   </footer>
   `
 })
-export class Shell {
+export class Shell implements OnInit {
+  private api = inject(Api);
   auth = inject(Auth);
   open = signal(false);
+  /** Nombre visible del titular de la cuenta (el JWT solo trae el usuario, no el nombre). */
+  nombre = signal((this.auth.nombre || 'Usuario').trim() || 'Usuario');
+
+  ngOnInit() {
+    // El token identifica al usuario (p. ej. "estudiante1"), no a la persona:
+    // para estudiantes se consulta la ficha y se muestra el nombre completo.
+    if (!this.auth.esEstudiante) return;
+    const id = this.auth.estudianteId;
+    if (isNaN(id)) return;
+
+    this.api.estudiante(id).subscribe({
+      next: (e) => {
+        const visible = nombreCompleto(e);
+        if (visible) this.nombre.set(visible);
+      },
+      error: () => { /* se conserva el nombre de respaldo del token */ }
+    });
+  }
 
   @HostListener('document:keydown.escape')
   cerrar() { this.open.set(false); }
 
   ini() {
-    const n = (this.auth.nombre || '').trim();
+    const n = this.nombre().trim();
     if (!n) return 'U';
     const parts = n.split(/\s+/).filter(Boolean);
     return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'U';

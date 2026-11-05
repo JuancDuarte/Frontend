@@ -10,6 +10,8 @@ export class Api {
   private http = inject(HttpClient);
 
   detalle(id: number) { return this.http.get<any>(`${B}/api/estudiantes/${id}/detalle`); }
+  /** Ficha básica del estudiante (incluye nombre, apellidos y programa). */
+  estudiante(id: number) { return this.http.get<any>(`${B}/api/estudiantes/${id}`); }
   materias() {
     return this.http.get<any>(`${B}/api/materias`, { params: { pageNumber: 0, pageSize: 200, sortBy: 'id', sortDirection: 'asc' } })
       .pipe(map(r => (r.content ?? r) as any[]));
