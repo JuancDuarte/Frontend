@@ -7,145 +7,217 @@ import { Auth } from '../core/auth';
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   host: { '[class.menu-open]': 'open()' },
   styles: [`
-    :host { display: flex; flex-direction: column; min-height: 100vh; }
+    :host { display: flex; flex-direction: column; min-height: 100vh; background: var(--bg); }
     :host(.menu-open) { overflow: hidden; }
     main { flex: 1 0 auto; }
-
-    /* ---------- Pie ---------- */
-    .foot {
-      margin-top: 40px;
-      border-top: 1px solid var(--line-soft);
-      padding: 22px 24px 28px;
-    }
-    .foot .fin {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 10px 24px; flex-wrap: wrap;
-      max-width: 1120px; margin: 0 auto;
-      color: var(--muted-2);
-      font-size: 12px;
-      letter-spacing: -.005em;
-    }
-    .foot .fin b { color: var(--muted); font-weight: 500; }
 
     /* ---------- Barra superior ---------- */
     .top {
       position: sticky; top: 0; z-index: 60;
-      background: rgba(251, 251, 253, .82);
-      -webkit-backdrop-filter: saturate(180%) blur(20px);
-      backdrop-filter: saturate(180%) blur(20px);
-      border-bottom: 1px solid rgba(0, 0, 0, .08);
+      background: #0b0b0c;
+      color: #fff;
+      border-bottom: 1px solid rgba(242, 183, 5, .38);
+      box-shadow: 0 18px 40px -32px rgba(0, 0, 0, .95);
+    }
+
+    .top::before {
+      content: "";
+      display: block;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold) 16%, var(--gold) 84%, transparent);
     }
 
     .in {
-      display: flex; align-items: center; gap: 26px;
-      max-width: 1120px; height: 50px;
-      margin: 0 auto; padding: 0 24px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 18px;
+      width: 100%;
+      max-width: 1280px;
+      height: 68px;
+      margin: 0 auto;
+      padding: 0 28px;
     }
 
     .brand {
-      display: flex; align-items: center; gap: 9px;
-      flex: 0 0 auto;
-      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      justify-self: start;
+      min-width: 0;
       text-decoration: none;
     }
     .brand:hover { text-decoration: none; }
 
-    .crest {
-      display: grid; place-items: center;
-      width: 26px; height: 26px;
-      padding-bottom: 1px;
-      border-radius: 7px;
-      background: var(--ink);
-      color: #fff;
-      font-family: var(--font-display);
-      font-size: 16px; font-weight: 500; line-height: 1;
-    }
-
-    .brand .name {
-      font-size: 13px; font-weight: 600; letter-spacing: -.015em;
-      white-space: nowrap;
-    }
-    .brand .name em {
-      margin-left: 8px;
-      color: var(--muted-2);
-      font-style: normal;
-      font-size: 10px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
-    }
-
-    .links {
-      display: flex; align-items: center; gap: 2px;
-      flex: 1; min-width: 0;
-    }
-
-    .links a {
-      position: relative;
-      padding: 7px 11px;
-      border-radius: 8px;
-      color: rgba(29, 29, 31, .7);
-      font-size: 12.5px; font-weight: 400; letter-spacing: -.005em;
-      white-space: nowrap;
-      text-decoration: none;
-      transition: color .18s var(--ease), background .18s var(--ease);
-    }
-    .links a:hover { color: var(--ink); background: rgba(0, 0, 0, .045); text-decoration: none; }
-    .links a.on { color: var(--ink); font-weight: 500; }
-    .links a.on::after {
-      content: "";
-      position: absolute; left: 11px; right: 11px; bottom: 1px;
-      height: 1px;
-      background: currentColor;
-    }
-
-    .me {
-      display: flex; align-items: center; gap: 10px;
+    .brand img {
+      display: block;
+      width: 110px;
+      height: auto;
       flex: 0 0 auto;
     }
 
-    .who {
-      max-width: 150px;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      color: var(--muted);
+    .brand .name {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      padding-left: 13px;
+      border-left: 1px solid rgba(255, 255, 255, .16);
+      line-height: 1.1;
+    }
+    .brand .name b {
+      color: #fff;
+      font-family: var(--font-display);
       font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: -.01em;
+      white-space: nowrap;
+    }
+    .brand .name em {
+      color: var(--gold);
+      font-style: normal;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* Bloque de usuario: centrado en la barra */
+    .me {
+      justify-self: center;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .who {
+      max-width: 190px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: rgba(255, 255, 255, .7);
+      font-size: 12.5px;
+      letter-spacing: -.005em;
     }
 
     .avatar {
-      display: grid; place-items: center;
-      width: 27px; height: 27px;
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(242, 183, 5, .48);
       border-radius: 50%;
-      background: var(--surface-3);
-      color: var(--ink-2);
-      font-size: 10px; font-weight: 600; letter-spacing: .03em;
+      background: rgba(242, 183, 5, .14);
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .05em;
     }
 
     .logout {
-      display: grid; place-items: center;
-      width: 30px; height: 30px; padding: 0;
-      border: 0; border-radius: 8px;
-      background: transparent; color: var(--muted);
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+      padding: 0;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: rgba(255, 255, 255, .66);
       cursor: pointer;
       transition: background .18s var(--ease), color .18s var(--ease);
     }
-    .logout:hover { background: rgba(0, 0, 0, .05); color: var(--ink); }
-    .logout svg { width: 15px; height: 15px; }
+    .logout:hover { background: rgba(242, 183, 5, .15); color: var(--gold); }
+    .logout:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; box-shadow: none; }
+    .logout svg { width: 16px; height: 16px; }
+
+    .side {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      justify-self: end;
+    }
+
+    .role {
+      color: rgba(255, 255, 255, .46);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
 
     .menu-btn {
       display: none;
       place-items: center;
-      width: 34px; height: 34px; padding: 0;
-      border: 0; border-radius: 8px;
-      background: transparent; color: var(--ink);
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 9px;
+      background: transparent;
+      color: #fff;
       cursor: pointer;
     }
+    .menu-btn:hover { border-color: rgba(242, 183, 5, .55); color: var(--gold); }
+    .menu-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; box-shadow: none; }
     .menu-btn svg { width: 18px; height: 18px; }
+
+    /* ---------- Navegación centrada ---------- */
+    .links {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      height: 46px;
+      margin: 0 auto;
+      padding: 0 28px;
+      border-top: 1px solid rgba(255, 255, 255, .07);
+    }
+
+    .links a {
+      position: relative;
+      padding: 7px 14px;
+      border-radius: 8px;
+      color: rgba(255, 255, 255, .66);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      text-decoration: none;
+      transition: color .18s var(--ease), background .18s var(--ease);
+    }
+    .links a:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, .055);
+      text-decoration: none;
+    }
+    .links a.on { color: #fff; }
+    .links a.on::after {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 2px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--gold);
+    }
+    .links a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; box-shadow: none; }
 
     /* ---------- Menú móvil ---------- */
     .sheet {
-      position: fixed; inset: 52px 0 0; z-index: 55;
+      position: fixed;
+      inset: 116px 0 0;
+      z-index: 55;
       overflow-y: auto;
-      padding: 6px 24px 40px;
-      background: rgba(251, 251, 253, .97);
-      -webkit-backdrop-filter: saturate(180%) blur(20px);
-      backdrop-filter: saturate(180%) blur(20px);
+      padding: 10px 24px 40px;
+      background: #0b0b0c;
       animation: sheet .34s var(--ease) both;
     }
 
@@ -157,47 +229,107 @@ import { Auth } from '../core/auth';
     .sheet-in { max-width: 640px; margin: 0 auto; }
 
     .sheet a.sheet-link {
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      padding: 16px 2px;
-      border-bottom: 1px solid var(--line-soft);
-      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 17px 2px;
+      border-bottom: 1px solid rgba(255, 255, 255, .09);
+      color: #fff;
       font-family: var(--font-display);
-      font-size: 26px; font-weight: 600; letter-spacing: -.03em;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -.03em;
       text-decoration: none;
     }
-    .sheet a.sheet-link:hover { text-decoration: none; color: var(--blue); }
-    .sheet a.sheet-link.on { color: var(--blue); }
-    .sheet a.sheet-link svg { width: 17px; height: 17px; color: var(--muted-2); flex: 0 0 17px; }
+    .sheet a.sheet-link:hover { color: var(--gold); text-decoration: none; }
+    .sheet a.sheet-link.on { color: var(--gold); }
+    .sheet a.sheet-link svg { width: 17px; height: 17px; color: rgba(255, 255, 255, .38); flex: 0 0 17px; }
+    .sheet a.sheet-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; box-shadow: none; }
 
     .sheet-foot {
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      margin-top: 26px; padding-top: 18px;
-      border-top: 1px solid var(--line-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 26px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(242, 183, 5, .3);
     }
-    .sheet-foot .id { color: var(--muted); font-size: 13px; }
-    .sheet-foot .id b { display: block; color: var(--ink); font-size: 14px; font-weight: 500; }
+    .sheet-foot .id { color: rgba(255, 255, 255, .5); font-size: 12px; }
+    .sheet-foot .id b { display: block; color: #fff; font-size: 14px; font-weight: 500; }
+    .sheet-foot .id em {
+      display: block;
+      margin-top: 4px;
+      color: var(--gold);
+      font-style: normal;
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
 
     .sheet-out {
-      display: inline-flex; align-items: center; gap: 8px;
-      min-height: 38px; padding: 0 18px;
-      border: 1px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 0 18px;
+      border: 1px solid rgba(242, 183, 5, .5);
       border-radius: var(--pill);
-      background: transparent; color: var(--ink);
-      font-family: inherit; font-size: 13px;
+      background: transparent;
+      color: var(--gold);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
+      transition: background .18s var(--ease);
     }
-    .sheet-out:hover { background: var(--surface-3); }
+    .sheet-out:hover { background: rgba(242, 183, 5, .13); }
+    .sheet-out:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; box-shadow: none; }
     .sheet-out svg { width: 15px; height: 15px; }
 
-    @media (max-width: 1000px) {
-      .who { display: none; }
+    /* ---------- Pie ---------- */
+    .foot {
+      margin-top: 56px;
+      border-top: 1px solid rgba(242, 183, 5, .35);
+      padding: 26px 28px 30px;
+      background: #0b0b0c;
+    }
+    .foot .fin {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 24px;
+      flex-wrap: wrap;
+      max-width: 1120px;
+      margin: 0 auto;
+      color: rgba(255, 255, 255, .5);
+      font-size: 12px;
+      letter-spacing: -.005em;
+    }
+    .foot .fin b { color: #fff; font-weight: 500; }
+    .foot .fin .dot { margin: 0 6px; color: var(--gold); }
+
+    @media (max-width: 1120px) {
+      .brand .name { display: none; }
     }
 
     @media (max-width: 900px) {
-      .links, .me { display: none; }
-      .menu-btn { display: grid; margin-left: auto; }
-      .in { gap: 16px; padding: 0 20px; }
-      .sheet { inset: 50px 0 0; }
+      .links { display: none; }
+      .menu-btn { display: grid; }
+      .role { display: none; }
+      .in { height: 64px; padding: 0 20px; }
+      .brand img { width: 96px; }
+      .sheet { inset: 66px 0 0; }
+    }
+
+    @media (max-width: 620px) {
+      .in { gap: 10px; padding: 0 16px; }
+      .brand img { width: 88px; }
+      .who { display: none; }
+      .sheet { padding: 6px 18px 32px; }
+      .sheet a.sheet-link { font-size: 21px; padding: 15px 2px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -210,28 +342,12 @@ import { Auth } from '../core/auth';
   <header class="top">
     <div class="in">
       <a class="brand" routerLink="/" aria-label="Inicio del Portal Académico UPTC">
-        <span class="crest" aria-hidden="true">U</span>
-        <span class="name">Portal Académico<em>UPTC</em></span>
+        <img src="uptc-logo-claro.png" alt="Universidad Pedagógica y Tecnológica de Colombia">
+        <span class="name">
+          <b>Portal Académico</b>
+          <em>UPTC</em>
+        </span>
       </a>
-
-      <nav class="links" aria-label="Navegación principal">
-        @if (auth.esEstudiante) {
-          <a routerLink="notas" routerLinkActive="on" ariaCurrentWhenActive="page">Asignaturas</a>
-          <a routerLink="inscribir" routerLinkActive="on" ariaCurrentWhenActive="page">Inscribir</a>
-          <a routerLink="buscar" routerLinkActive="on" ariaCurrentWhenActive="page">Buscar cursos</a>
-          <a routerLink="pendientes" routerLinkActive="on" ariaCurrentWhenActive="page">Pendientes</a>
-        }
-
-        @if (auth.esAdmin) {
-          <a routerLink="estudiantes" routerLinkActive="on" ariaCurrentWhenActive="page">Estudiantes</a>
-        }
-
-        <a routerLink="materias" routerLinkActive="on" ariaCurrentWhenActive="page">Materias</a>
-
-        @if (!auth.esAdmin) {
-          <a routerLink="perfil" routerLinkActive="on" ariaCurrentWhenActive="page">Perfil</a>
-        }
-      </nav>
 
       <div class="me">
         <span class="who">{{ auth.nombre || 'Usuario' }}</span>
@@ -241,15 +357,37 @@ import { Auth } from '../core/auth';
         </button>
       </div>
 
-      <button class="menu-btn" type="button" (click)="open.set(!open())" [attr.aria-expanded]="open()" aria-controls="menu-movil"
-              [attr.aria-label]="open() ? 'Cerrar menú' : 'Abrir menú'">
-        @if (open()) {
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19"/></svg>
-        } @else {
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-        }
-      </button>
+      <div class="side">
+        <span class="role">{{ auth.esAdmin ? 'Administrador' : 'Estudiante' }}</span>
+        <button class="menu-btn" type="button" (click)="open.set(!open())" [attr.aria-expanded]="open()" aria-controls="menu-movil"
+                [attr.aria-label]="open() ? 'Cerrar menú' : 'Abrir menú'">
+          @if (open()) {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19"/></svg>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          }
+        </button>
+      </div>
     </div>
+
+    <nav class="links" aria-label="Navegación principal">
+      @if (auth.esEstudiante) {
+        <a routerLink="notas" routerLinkActive="on" ariaCurrentWhenActive="page">Asignaturas</a>
+        <a routerLink="inscribir" routerLinkActive="on" ariaCurrentWhenActive="page">Inscribir</a>
+        <a routerLink="buscar" routerLinkActive="on" ariaCurrentWhenActive="page">Buscar cursos</a>
+        <a routerLink="pendientes" routerLinkActive="on" ariaCurrentWhenActive="page">Pendientes</a>
+      }
+
+      @if (auth.esAdmin) {
+        <a routerLink="estudiantes" routerLinkActive="on" ariaCurrentWhenActive="page">Estudiantes</a>
+      }
+
+      <a routerLink="materias" routerLinkActive="on" ariaCurrentWhenActive="page">Materias</a>
+
+      @if (!auth.esAdmin) {
+        <a routerLink="perfil" routerLinkActive="on" ariaCurrentWhenActive="page">Perfil</a>
+      }
+    </nav>
   </header>
 
   @if (open()) {
@@ -297,7 +435,7 @@ import { Auth } from '../core/auth';
       <div class="sheet-in sheet-foot">
         <div class="id">
           <b>{{ auth.nombre || 'Usuario' }}</b>
-          {{ auth.rol || 'USUARIO' }}
+          <em>{{ auth.esAdmin ? 'Administrador' : 'Estudiante' }}</em>
         </div>
         <button class="sheet-out" type="button" (click)="auth.logout()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
@@ -311,8 +449,8 @@ import { Auth } from '../core/auth';
 
   <footer class="foot">
     <div class="fin">
-      <span><b>Portal Académico UPTC</b> · Universidad Pedagógica y Tecnológica de Colombia</span>
-      <span>Sistemas Distribuidos · Laboratorio 4 · 2026</span>
+      <span><b>Portal Académico UPTC</b><span class="dot">·</span>Universidad Pedagógica y Tecnológica de Colombia</span>
+      <span>Sistemas Distribuidos<span class="dot">·</span>Laboratorio 4<span class="dot">·</span>2026</span>
     </div>
   </footer>
   `
