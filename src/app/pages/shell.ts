@@ -395,6 +395,7 @@ const nombreCompleto = (e: any): string => {
 
       @if (auth.esAdmin) {
         <a routerLink="estudiantes" routerLinkActive="on" ariaCurrentWhenActive="page">Estudiantes</a>
+        <a routerLink="configuracion" routerLinkActive="on" ariaCurrentWhenActive="page">Configuración</a>
       }
 
       <a routerLink="materias" routerLinkActive="on" ariaCurrentWhenActive="page">Materias</a>
@@ -430,6 +431,10 @@ const nombreCompleto = (e: any): string => {
         @if (auth.esAdmin) {
           <a class="sheet-link" routerLink="estudiantes" routerLinkActive="on" ariaCurrentWhenActive="page">
             Estudiantes
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </a>
+          <a class="sheet-link" routerLink="configuracion" routerLinkActive="on" ariaCurrentWhenActive="page">
+            Configuración
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
           </a>
         }

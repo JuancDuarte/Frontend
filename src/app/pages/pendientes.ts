@@ -1,5 +1,5 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { forkJoin } from 'rxjs';
+import { map, switchMap } from 'rxjs';
 import { Api } from '../core/api';
 import { Auth } from '../core/auth';
 
@@ -80,11 +80,20 @@ export class Pendientes implements OnInit {
   pendientes = signal<any[]>([]); msg = signal(''); cargando = signal(true);
 
   ngOnInit() {
-    forkJoin([this.api.materias(), this.api.detalle(this.auth.estudianteId)]).subscribe({
-      next: ([ms, d]) => {
+    this.api.detalle(this.auth.estudianteId).pipe(
+      switchMap(d => {
+        const codigo = d.estudiante?.programaCodigo ?? '';
+        // Solo se listan materias del pensum del estudiante, nunca de otras carreras.
+        return this.api.materias(codigo || undefined).pipe(map(ms => ({ ms, d, codigo })));
+      })
+    ).subscribe({
+      next: ({ ms, d, codigo }) => {
         // Inscripciones solo trae el nombre del curso: se compara por nombre de materia
-        const vistas = new Set((d.inscripciones ?? []).filter((i: any) => i.estado !== 'RETIRADA' && i.estado !== 'CANCELADA').map((i: any) => i.curso?.nombre));
-        this.pendientes.set(ms.filter(m => !vistas.has(m.nombre)));
+        const vistas = new Set((d.inscripciones ?? [])
+          .filter((i: any) => i.estado !== 'RETIRADA' && i.estado !== 'CANCELADA')
+          .map((i: any) => i.curso?.nombre));
+        const delPrograma = codigo ? ms.filter((m: any) => m.programaCodigo === codigo) : ms;
+        this.pendientes.set(delPrograma.filter((m: any) => !vistas.has(m.nombre)));
         this.cargando.set(false);
       },
       error: () => {

@@ -14,18 +14,31 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
       <div>
         <span class="eyebrow">Inscripciones</span>
         <h1>Buscar cursos</h1>
-        <p>Filtra por programa, asignatura, día y franja horaria para encontrar el curso que necesitas.</p>
+        <p>Consulta la oferta de todas las carreras y filtra por asignatura, día y franja horaria. La inscripción solo aplica a materias de tu programa.</p>
       </div>
     </div>
+
+    @if (!habilitada()) {
+      <div class="err" role="alert">
+        <b>No está en fecha disponible para inscripción de materias.</b>
+        <span>Puedes consultar la oferta académica, pero no inscribir hasta que el administrador habilite el periodo.</span>
+      </div>
+    }
 
     <div class="card">
       <div class="filters">
         <div class="f">
           <label for="programa">Programa</label>
-          <select id="programa" [(ngModel)]="programa">
+          <select id="programa" [(ngModel)]="programa" aria-describedby="programa-nota">
             <option value="">Todos los programas</option>
-            @for (p of programas(); track p) { <option [value]="p">{{p}}</option> }
+            @for (p of programas(); track p.code) {
+              <option [value]="p.code">{{p.name}}</option>
+            }
           </select>
+          <small id="programa-nota" class="muted">
+            Puedes buscar en cualquier carrera. Solo puedes inscribir materias de
+            {{programaPropioNombre() || 'tu programa'}}.
+          </small>
         </div>
 
         <div class="f grow">
@@ -74,6 +87,7 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
               <tr>
                 <th>Código</th>
                 <th>Asignatura</th>
+                <th>Programa</th>
                 <th class="center">Créditos</th>
                 <th>Docente</th>
                 <th>Horario</th>
@@ -87,6 +101,10 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
                 <tr>
                   <td class="mono muted nowrap">{{c.materia.codigo}}</td>
                   <td><b>{{c.materia.nombre}}</b></td>
+                  <td>
+                    <span class="nowrap">{{c.programa ?? c.materia.programa ?? '—'}}</span>
+                    @if (!esPropio(c)) { <div class="warn">Otra carrera</div> }
+                  </td>
                   <td class="center tnum">{{c.materia.creditos}}</td>
                   <td>{{c.docente?.nombre ?? c.docenteNombre ?? '—'}}</td>
                   <td>
@@ -108,13 +126,15 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
                   </td>
                   <td>
                     <div class="cell-actions">
-                      <button class="btn sm" [disabled]="c.cupo <= 0" (click)="inscribir(c)">{{c.cupo > 0 ? 'Inscribir' : 'Sin cupo'}}</button>
+                      <button class="btn sm" [disabled]="!puedeInscribir(c)" (click)="inscribir(c)">
+                        {{etiqueta(c)}}
+                      </button>
                     </div>
                   </td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="8">
+                  <td colspan="9">
                     <div class="empty">
                       <strong>Sin cursos</strong>
                       <span>No se encontraron cursos con esos criterios. Prueba ampliando la franja horaria o el día.</span>
@@ -132,13 +152,36 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
 export class Buscar implements OnInit {
   private api = inject(Api); private auth = inject(Auth);
   dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  programas = signal<string[]>([]); resultados = signal<any[]>([]); actuales = signal<string[]>([]);
+  resultados = signal<any[]>([]); actuales = signal<string[]>([]);
+  programas = signal<any[]>([]);
   programa = ''; texto = ''; dia = ''; desde = 6; hasta = 22;
   buscando = signal(false); buscado = signal(false); msg = signal(''); ok = signal(false);
+  habilitada = signal(true);
+  private programaPropio = signal('');
 
   ngOnInit() {
-    this.api.materias().subscribe(m => this.programas.set([...new Set(m.map(x => x.programa).filter(Boolean))] as string[]));
-    this.recargar();
+    // La oferta es de todas las carreras; el programa propio solo limita la inscripción.
+    forkJoin({
+      detalle: this.api.detalle(this.auth.estudianteId).pipe(catchError(() => of({}))),
+      programas: this.api.programas().pipe(catchError(() => of([] as any[]))),
+      configuracion: this.api.configuracionInscripcion().pipe(catchError(() => of({ habilitada: true })))
+    }).subscribe({
+      next: ({ detalle, programas, configuracion }) => {
+        const e = detalle?.estudiante ?? {};
+        this.programaPropio.set(e.programaCodigo ?? '');
+        this.actuales.set((detalle?.inscripciones ?? [])
+          .filter((i: any) => i.estado === 'ACTIVA')
+          .map((i: any) => i.curso?.horario));
+        this.programas.set((programas ?? []).map((p: any) => ({ code: p.code, name: p.name })));
+        this.habilitada.set(configuracion?.habilitada !== false);
+      },
+      error: () => { this.ok.set(false); this.msg.set('No se pudo cargar tu información académica'); }
+    });
+  }
+
+  programaPropioNombre() {
+    const p = this.programas().find(x => x.code === this.programaPropio());
+    return p?.name ?? '';
   }
 
   recargar() {
@@ -149,11 +192,11 @@ export class Buscar implements OnInit {
   buscar() {
     if (this.texto.trim().length < 4) { this.ok.set(false); return this.msg.set('Ingrese mínimo 4 caracteres'); }
     this.msg.set(''); this.buscando.set(true);
-    this.api.buscarMaterias(this.texto.trim(), this.programa).pipe(
+    this.api.buscarMaterias(this.texto.trim(), undefined, this.programa || undefined).pipe(
       switchMap(ms => ms.length
         ? forkJoin(ms.map(m => this.api.cursos(m.id).pipe(catchError(() => of([])), map(cs => cs.map(c => ({ ...c, materia: m }))))))
         : of([] as any[][])),
-      map(g => g.flat().filter(c => this.pasaFiltros(c)))
+      map(g => g.flat().filter(c => (!this.programa || c.programaCodigo === this.programa) && this.pasaFiltros(c)))
     ).subscribe({
       next: r => { this.resultados.set(r); this.buscado.set(true); this.buscando.set(false); },
       error: () => { this.buscando.set(false); this.ok.set(false); this.msg.set('No se pudo realizar la búsqueda'); }
@@ -170,7 +213,19 @@ export class Buscar implements OnInit {
 
   cruce(c: any) { return this.actuales().includes(c.horario); }
 
+  esPropio(c: any) { return !!this.programaPropio() && c.programaCodigo === this.programaPropio(); }
+
+  puedeInscribir(c: any) { return this.habilitada() && this.esPropio(c) && Number(c.cupo) > 0; }
+
+  etiqueta(c: any) {
+    if (!this.esPropio(c)) return 'Otro programa';
+    if (!this.habilitada()) return 'Cerrada';
+    return Number(c.cupo) > 0 ? 'Inscribir' : 'Sin cupo';
+  }
+
   inscribir(c: any) {
+    if (!this.habilitada()) { this.ok.set(false); return this.msg.set('No está en fecha disponible para inscripción de materias'); }
+    if (!this.esPropio(c)) { this.ok.set(false); return this.msg.set('Solo puedes inscribir materias de tu programa'); }
     this.api.inscribir(c.id, c.periodo).subscribe({
       next: () => { this.ok.set(true); this.msg.set(`Inscrito en ${c.materia.nombre}`); this.recargar(); this.buscar(); },
       error: e => { this.ok.set(false); this.msg.set(e.error?.error?.message ?? e.error?.mensaje ?? e.error?.message ?? 'No se pudo inscribir'); }

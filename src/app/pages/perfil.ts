@@ -31,21 +31,11 @@ const EST: any = { active: 'MATRICULADO', inactive: 'INACTIVO' };
           } @else {
             <div class="photo" aria-hidden="true">{{ini()}}</div>
           }
-
-          @if (!auth.esDocente) {
-            <input #f type="file" accept="image/jpeg,image/png" hidden (change)="subir(f.files)">
-            <button class="btn out sm" (click)="f.click()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V10"/><path d="m8 14 4-4 4 4"/><path d="M4 5h16"/></svg>
-              Cambiar foto
-            </button>
-          }
-
-          @if (msg()) { <div [class]="ok() ? 'ok' : 'err'" style="margin-top:12px">{{msg()}}</div> }
         </div>
 
         <div class="info">
           <div class="who">
-            <h2>{{auth.nombre || 'Usuario'}}</h2>
+            <h2>{{nombreMostrado() || 'Usuario'}}</h2>
             <span class="badge s-brand">{{auth.rol || 'USUARIO'}}</span>
           </div>
 
@@ -110,12 +100,13 @@ const EST: any = { active: 'MATRICULADO', inactive: 'INACTIVO' };
 })
 export class Perfil implements OnInit {
   private api = inject(Api); auth = inject(Auth);
-  grupos = signal<Grupo[]>([]); cursos = signal<any[]>([]); foto = signal(''); error = signal(''); msg = signal(''); ok = signal(false);
+  grupos = signal<Grupo[]>([]); cursos = signal<any[]>([]); foto = signal(''); error = signal('');
+  nombreMostrado = signal('');
 
   ngOnInit() { this.auth.esDocente ? this.cargarDocente() : this.cargarEstudiante(); }
 
   ini() {
-    const n = (this.auth.nombre || '').trim();
+    const n = (this.nombreMostrado() || this.auth.nombre || '').trim();
     const p = n.split(/\s+/).filter(Boolean);
     return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase() || 'U';
   }
@@ -125,6 +116,7 @@ export class Perfil implements OnInit {
     forkJoin([this.api.detalle(id), this.api.contacto(id).pipe(catchError(() => of({})))]).subscribe({
       next: ([d, c]) => {
         const e = d.estudiante ?? {}; this.foto.set(e.fotoUrl ?? d.fotoUrl ?? '');
+        this.nombreMostrado.set(this.nombreCorto(e.firstName, e.lastName) || this.auth.nombre || 'Usuario');
         this.grupos.set([
           { titulo: 'Datos personales', campos: [
             { l: 'Nombres', v: e.firstName?.toUpperCase() }, { l: 'Apellidos', v: e.lastName?.toUpperCase() },
@@ -132,8 +124,8 @@ export class Perfil implements OnInit {
             { l: 'Género', v: GEN[e.gender] ?? e.gender }, { l: 'Tipo documento', v: TIPO[e.documentType] ?? e.documentType },
             { l: 'Documento', v: e.documentNumber }, { l: 'Fecha de nacimiento', v: e.birthDate }] },
           { titulo: 'Datos del programa', campos: [
-            { l: 'Nombre programa', v: e.programa?.toUpperCase() }, { l: 'Código', v: e.programId },
-            { l: 'Sede', v: e.sede }, { l: 'Jornada', v: e.jornada }] },
+            { l: 'Nombre programa', v: e.programa?.toUpperCase() }, { l: 'Código programa', v: e.programaCodigo },
+            { l: 'Sede', v: e.sede }, { l: 'Horario', v: e.horario ?? e.jornada }] },
           { titulo: 'Datos de contacto', campos: [
             { l: 'Dirección', v: c.direccion ?? c.address }, { l: 'Teléfono', v: c.telefono ?? c.phone },
             { l: 'Contacto de emergencia', v: c.contactoEmergencia ?? c.emergencyContact }, { l: 'Correo', v: e.email }] }
@@ -145,21 +137,20 @@ export class Perfil implements OnInit {
   cargarDocente() {
     const id = this.auth.docenteId;
     this.api.docente(id).subscribe({
-      next: d => this.grupos.set([{ titulo: 'Datos personales', campos: [
-        { l: 'Nombre', v: (d.nombre ?? this.auth.nombre)?.toUpperCase() }, { l: 'Código', v: d.id },
-        { l: 'Correo', v: d.email ?? d.correo }, { l: 'Departamento', v: d.departamento }] }]),
+      next: d => {
+        this.nombreMostrado.set(d.nombre ?? this.auth.nombre ?? 'Usuario');
+        this.grupos.set([{ titulo: 'Datos personales', campos: [
+          { l: 'Nombre', v: (d.nombre ?? this.auth.nombre)?.toUpperCase() }, { l: 'Código', v: d.id },
+          { l: 'Correo', v: d.email ?? d.correo }, { l: 'Departamento', v: d.departamento }] }]);
+      },
       error: () => this.error.set('No se pudo cargar el perfil')
     });
     this.api.cursosDocente(id).pipe(catchError(() => of([]))).subscribe(c => this.cursos.set(c));
   }
 
-  subir(files: FileList | null) {
-    const f = files?.[0]; if (!f) return;
-    if (!['image/jpeg', 'image/png'].includes(f.type)) { this.ok.set(false); return this.msg.set('Solo JPG o PNG'); }
-    if (f.size > 2 * 1024 * 1024) { this.ok.set(false); return this.msg.set('Máximo 2 MB'); }
-    this.api.subirFoto(this.auth.estudianteId, f).subscribe({
-      next: () => { this.ok.set(true); this.msg.set('Foto actualizada'); this.cargarEstudiante(); },
-      error: () => { this.ok.set(false); this.msg.set('No se pudo subir la foto'); }
-    });
+  /** "Juan Camilo" + "Rodríguez Gómez" -> "Juan Rodríguez". */
+  private nombreCorto(nombres?: string, apellidos?: string) {
+    const primero = (valor?: string) => (valor ?? '').trim().split(/\s+/).filter(Boolean)[0] ?? '';
+    return [primero(nombres), primero(apellidos)].filter(Boolean).join(' ');
   }
 }

@@ -1,6 +1,6 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of, switchMap } from 'rxjs';
 import { Api } from '../core/api';
 import { Auth } from '../core/auth';
 
@@ -14,7 +14,10 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
       <div>
         <span class="eyebrow">Inscripciones</span>
         <h1>Inscribir asignaturas</h1>
-        <p>{{periodoTexto() || 'Periodo académico actual'}}. Solo se ofrecen materias que aún no has cursado.</p>
+        <p>
+          {{periodoTexto() || 'Periodo académico actual'}}. Solo se ofrecen materias de tu programa que aún no has cursado.
+          @if (sede()) { <span class="muted">· Sede {{sede()}} · Horario {{horario()}}</span> }
+        </p>
       </div>
 
       <div class="metrics">
@@ -46,6 +49,13 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
         </div>
       </div>
     </div>
+
+    @if (!habilitada()) {
+      <div class="err" role="alert">
+        <b>No está en fecha disponible para inscripción de materias.</b>
+        <span>Puedes consultar la oferta académica, pero no inscribir hasta que el administrador habilite el periodo.</span>
+      </div>
+    }
 
     @if (msg()) { <div [class]="ok() ? 'ok' : 'err'">{{msg()}}</div> }
 
@@ -86,6 +96,7 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
             <thead>
               <tr>
                 <th>Asignatura</th>
+                <th class="center">Semestre</th>
                 <th class="center">Créditos</th>
                 <th>Docente</th>
                 <th>Horario</th>
@@ -100,7 +111,8 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
                     <b>{{c.materia?.nombre}}</b>
                     <span class="sub mono">{{c.materia?.codigo}}</span>
                   </td>
-                  <td class="center tnum">{{c.materia?.creditos}}</td>
+                  <td class="center tnum">{{c.materia?.semestre ?? c.materiaSemestre}}</td>
+                  <td class="center tnum">{{c.materia?.creditos ?? c.materiaCreditos}}</td>
                   <td>{{c.docenteNombre ?? c.docente?.nombre ?? '—'}}</td>
                   <td>
                     <span class="nowrap">{{c.horario}}</span>
@@ -120,15 +132,15 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
                   </td>
                   <td>
                     <div class="cell-actions">
-                      <button class="btn sm" [disabled]="c.cupo <= 0 || guardando() !== null" (click)="inscribir(c)">
-                        {{guardando() === c.id ? 'Inscribiendo…' : (c.cupo > 0 ? 'Inscribir' : 'Sin cupo')}}
+                      <button class="btn sm" [disabled]="c.cupo <= 0 || guardando() !== null || !habilitada()" (click)="inscribir(c)">
+                        {{guardando() === c.id ? 'Inscribiendo…' : (!habilitada() ? 'Cerrada' : (c.cupo > 0 ? 'Inscribir' : 'Sin cupo'))}}
                       </button>
                     </div>
                   </td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6">
+                  <td colspan="7">
                     <div class="empty">
                       <strong>Sin cursos disponibles</strong>
                       <span>Ya cursaste todas las materias ofertadas en este periodo.</span>
@@ -146,23 +158,44 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
 export class Inscribir implements OnInit {
   private api = inject(Api); private auth = inject(Auth);
 
-  materias = signal<any[]>([]);          // materias que aún no ha cursado y que tienen oferta
+  materias = signal<any[]>([]);          // materias del programa que aún no ha cursado y tienen oferta
   cursos = signal<any[]>([]);            // cursos ofertados en el periodo
   ocupados = signal<{ nombre: string; horario: string }[]>([]);
   periodo = signal('');
+  sede = signal('');
+  horario = signal('');
   sel = signal<number | null>(null);
   msg = signal(''); ok = signal(false);
   cargando = signal(true); guardando = signal<number | null>(null);
   creditos = signal(0);
+  habilitada = signal(true);
+  private programaCodigo = '';
 
-  ngOnInit() { this.recargar(); }
+  ngOnInit() { this.cargarConfiguracion(); this.recargar(); }
+
+  /** Ventana global de inscripción: si está cerrada solo se puede consultar la oferta. */
+  private cargarConfiguracion() {
+    this.api.configuracionInscripcion().subscribe({
+      next: c => this.habilitada.set(c.habilitada !== false),
+      error: () => this.habilitada.set(false)
+    });
+  }
 
   private recargar() {
     this.cargando.set(true);
-    forkJoin({ materias: this.api.materias(), detalle: this.api.detalle(this.auth.estudianteId) }).subscribe({
+    this.api.detalle(this.auth.estudianteId).pipe(
+      switchMap(detalle => {
+        const e = detalle.estudiante ?? {};
+        this.programaCodigo = e.programaCodigo ?? '';
+        this.sede.set(e.sede ?? '');
+        this.horario.set(e.horario ?? '');
+        return forkJoin({ detalle: of(detalle), materias: this.api.materias(this.programaCodigo) });
+      })
+    ).subscribe({
       next: ({ materias, detalle }) => {
         const inscripciones: any[] = detalle.inscripciones ?? [];
         const per = inscripciones.map(i => i.periodo).sort().pop() ?? '';
+        const programa = this.programaCodigo;
 
         // Inscripciones vigentes del periodo: sirven para detectar cruces de horario.
         const activas = inscripciones.filter(i => i.periodo === per && i.estado === 'ACTIVA');
@@ -185,13 +218,15 @@ export class Inscribir implements OnInit {
         this.creditos.set([...delPeriodo.values()]
           .reduce((t, i) => t + Number(porNombre.get(norm(i.curso?.nombre))?.creditos ?? 0), 0));
 
-        this.api.cursosPeriodo(per || undefined).subscribe({
+        this.api.cursosPeriodo(per || undefined, programa).subscribe({
           next: cs => {
+            // Defensa en profundidad: el backend ya filtra, pero no se muestra nada de otro programa.
+            const delPrograma = cs.filter((c: any) => !programa || c.programaCodigo === programa);
             // Si el estudiante no tiene historial, se toma el periodo más reciente de la oferta.
-            const periodo = per || cs.map((c: any) => c.periodo).sort().pop() || '';
+            const periodo = per || delPrograma.map((c: any) => c.periodo).sort().pop() || '';
             this.periodo.set(periodo);
 
-            const ofertados = cs.filter((c: any) => c.periodo === periodo);
+            const ofertados = delPrograma.filter((c: any) => c.periodo === periodo);
             const ofertadas = new Set(ofertados.map((c: any) => c.materiaId));
             const lista = disponibles.filter((m: any) => ofertadas.has(m.id));
             this.materias.set(lista);
@@ -201,7 +236,9 @@ export class Inscribir implements OnInit {
             this.cursos.set(ofertados
               .filter((c: any) => lista.some((m: any) => m.id === c.materiaId))
               .map((c: any) => ({ ...c, materia: catalogo.get(c.materiaId) }))
-              .sort((a, b) => String(a.materia?.nombre ?? '').localeCompare(String(b.materia?.nombre ?? ''), 'es') || a.id - b.id));
+              .sort((a, b) => Number(a.materia?.semestre ?? 99) - Number(b.materia?.semestre ?? 99)
+                || String(a.materia?.nombre ?? '').localeCompare(String(b.materia?.nombre ?? ''), 'es')
+                || a.id - b.id));
             this.cargando.set(false);
           },
           error: () => { this.cargando.set(false); this.ok.set(false); this.msg.set('No se pudo cargar la oferta de cursos'); }
@@ -226,6 +263,10 @@ export class Inscribir implements OnInit {
 
   inscribir(c: any) {
     if (this.guardando() !== null) return;
+    if (!this.habilitada()) {
+      this.ok.set(false);
+      return this.msg.set('No está en fecha disponible para inscripción de materias');
+    }
     this.msg.set(''); this.guardando.set(c.id);
     this.api.inscribir(c.id, c.periodo || this.periodo()).subscribe({
       next: () => {

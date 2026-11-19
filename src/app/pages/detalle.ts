@@ -34,7 +34,7 @@ import { Auth } from '../core/auth';
               <div class="photo" aria-hidden="true">{{(d.estudiante?.firstName?.[0] ?? '') + (d.estudiante?.lastName?.[0] ?? '')}}</div>
             }
 
-            @if (auth.esAdmin || auth.estudianteId === id) {
+            @if (auth.esAdmin) {
               <input #f type="file" accept="image/jpeg,image/png" hidden (change)="subir(f.files)">
               <button class="btn out sm" (click)="f.click()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V10"/><path d="m8 14 4-4 4 4"/><path d="M4 5h16"/></svg>
