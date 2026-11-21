@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+# Portal Académico UPTC — aplicación de una sola página.
+# Las rutas internas se resuelven en el cliente.
+Disallow: /login

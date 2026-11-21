@@ -8,7 +8,7 @@ COPY . .
 # URL pública del Gateway que queda dentro del build
 ARG GATEWAY_URL
 RUN if [ -n "$GATEWAY_URL" ]; then \
-      sed -i "s|https://ap-e20b29aef2e243c3a29893b305c95397.ecs.us-east-2.on.aws|${GATEWAY_URL}|" src/environments/environment.prod.ts; \
+      sed -i -E "s|gatewayUrl: '[^']*'|gatewayUrl: '${GATEWAY_URL}'|" src/environments/environment.prod.ts; \
     fi
 RUN npm run build -- --configuration production
 

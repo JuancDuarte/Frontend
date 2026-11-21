@@ -1,5 +1,5 @@
 {"$schema":"./node_modules/@angular/cli/lib/config/schema.json","version":1,"newProjectRoot":"projects","projects":{"app":{"projectType":"application","root":"","sourceRoot":"src","prefix":"app","architect":{
-"build":{"builder":"@angular/build:application","options":{"outputPath":"dist/app","index":"src/index.html","browser":"src/main.ts","polyfills":["zone.js"],"tsConfig":"tsconfig.json","styles":["src/styles.css"]},
+"build":{"builder":"@angular/build:application","options":{"outputPath":"dist/app","index":"src/index.html","browser":"src/main.ts","polyfills":["zone.js"],"tsConfig":"tsconfig.json","styles":["src/styles.css"],"assets":[{"glob":"**/*","input":"public"}]},
 "configurations":{"production":{"fileReplacements":[{"replace":"src/environments/environment.ts","with":"src/environments/environment.prod.ts"}],"outputHashing":"all"},"development":{"optimization":false,"sourceMap":true}},"defaultConfiguration":"production"},
 "serve": {
   "builder": "@angular/build:dev-server",

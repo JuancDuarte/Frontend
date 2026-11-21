@@ -9,53 +9,202 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
 
 @Component({
   selector: 'app-buscar', imports: [FormsModule],
-  styles: [`.p{padding:24px;display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end}select,input[type=text]{padding:10px 4px;border:0;border-bottom:1px solid #999;background:none;font-size:15px;min-width:200px}
-  .or{background:#ff9800;box-shadow:0 2px 6px #0004}.rng{display:flex;flex-direction:column;font-size:17px;min-width:260px}`],
-  template: `<h1>Buscar Cursos</h1>
-  <div class="card"><div class="p">
-    <select [(ngModel)]="programa"><option value="">todos los Programas</option>@for (p of programas(); track p) { <option [value]="p">{{p}}</option> }</select>
-    <input type="text" [(ngModel)]="texto" placeholder="* Ingrese mínimo 4 caracteres." (keyup.enter)="buscar()">
-    <select [(ngModel)]="dia"><option value="">todos los días</option>@for (d of dias; track d) { <option [value]="d">{{d}}</option> }</select>
-    <div class="rng">Programada entre las: {{desde}}:00 y las {{hasta}}:00 horas
-      <span><input type="range" min="6" max="22" [(ngModel)]="desde" (ngModelChange)="hasta = hasta < desde ? desde : hasta">
-      <input type="range" min="6" max="22" [(ngModel)]="hasta" (ngModelChange)="desde = desde > hasta ? hasta : desde"></span></div>
-    <button class="btn or" (click)="buscar()" [disabled]="buscando()">🔍 Buscar</button></div>
-    @if (msg()) { <div [class]="ok() ? 'ok' : 'err'" style="padding:0 24px 16px">{{msg()}}</div> }</div>
-  @if (buscado()) { <div class="card"><h3>Cursos encontrados</h3><div style="overflow-x:auto"><table><thead><tr><th>Código</th><th>Asignatura</th><th>Créditos</th><th>Docente</th><th>Horario</th><th>Periodo</th><th>Cupo</th><th></th></tr></thead><tbody>
-    @for (c of resultados(); track c.id) {
-      <tr><td>{{c.materia.codigo}}</td><td>{{c.materia.nombre}}</td><td>{{c.materia.creditos}}</td><td>{{c.docente?.nombre ?? c.docenteNombre}}</td>
-      <td>{{c.horario}} @if (cruce(c)) { <div class="warn">⚠ Cruce con otra asignatura</div> }</td><td>{{c.periodo}}</td><td>{{cupos(c)}} / {{c.cupo}} @if (c.estado === 'INACTIVO') { <div class="warn">Cerrado</div> }</td>
-      <td><button class="btn sm" [disabled]="enviando() !== null || !puede(c)" (click)="inscribir(c)">{{enviando() === c.id ? 'Inscribiendo…' : 'Inscribir'}}</button></td></tr>
-    } @empty { <tr><td colspan="8" class="muted">No se encontraron cursos con esos criterios</td></tr> }</tbody></table></div></div> }`
+  template: `
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">Inscripciones</span>
+        <h1>Buscar cursos</h1>
+        <p>Consulta la oferta de todas las carreras y filtra por asignatura, día y franja horaria. La inscripción solo aplica a materias de tu programa.</p>
+      </div>
+    </div>
+
+    @if (!habilitada()) {
+      <div class="err" role="alert">
+        <b>No está en fecha disponible para inscripción de materias.</b>
+        <span>Puedes consultar la oferta académica, pero no inscribir hasta que el administrador habilite el periodo.</span>
+      </div>
+    }
+
+    <div class="card">
+      <div class="filters">
+        <div class="f">
+          <label for="programa">Programa</label>
+          <select id="programa" [(ngModel)]="programa" aria-describedby="programa-nota">
+            <option value="">Todos los programas</option>
+            @for (p of programas(); track p.code) {
+              <option [value]="p.code">{{p.name}}</option>
+            }
+          </select>
+          <small id="programa-nota" class="muted">
+            Puedes buscar en cualquier carrera. Solo puedes inscribir materias de
+            {{programaPropioNombre() || 'tu programa'}}.
+          </small>
+        </div>
+
+        <div class="f grow">
+          <label for="texto">Asignatura</label>
+          <input id="texto" type="search" [(ngModel)]="texto" placeholder="Mínimo 4 caracteres…" (keyup.enter)="buscar()">
+        </div>
+
+        <div class="f">
+          <label for="dia">Día</label>
+          <select id="dia" [(ngModel)]="dia">
+            <option value="">Todos los días</option>
+            @for (d of dias; track d) { <option [value]="d">{{d}}</option> }
+          </select>
+        </div>
+
+        <div class="f range">
+          <label>Franja horaria</label>
+          <div class="row">
+            <input type="range" min="6" max="22" [(ngModel)]="desde" (ngModelChange)="hasta = hasta < desde ? desde : hasta" aria-label="Hora inicial">
+            <output>{{desde}}:00</output>
+            <span class="muted">a</span>
+            <input type="range" min="6" max="22" [(ngModel)]="hasta" (ngModelChange)="desde = desde > hasta ? hasta : desde" aria-label="Hora final">
+            <output>{{hasta}}:00</output>
+          </div>
+        </div>
+
+        <button class="btn" (click)="buscar()" [disabled]="buscando()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          {{buscando() ? 'Buscando…' : 'Buscar'}}
+        </button>
+      </div>
+    </div>
+
+    @if (msg()) { <div [class]="ok() ? 'ok' : 'err'">{{msg()}}</div> }
+
+    @if (buscado()) {
+      <div class="card">
+        <div class="card-head">
+          <h2>Cursos encontrados</h2>
+          <span class="badge">{{resultados().length}} resultados</span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Asignatura</th>
+                <th>Programa</th>
+                <th class="center">Créditos</th>
+                <th>Docente</th>
+                <th>Horario</th>
+                <th>Periodo</th>
+                <th class="center">Cupo</th>
+                <th class="num">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of resultados(); track c.id) {
+                <tr>
+                  <td class="mono muted nowrap">{{c.materia.codigo}}</td>
+                  <td><b>{{c.materia.nombre}}</b></td>
+                  <td>
+                    <span class="nowrap">{{c.programa ?? c.materia.programa ?? '—'}}</span>
+                    @if (!esPropio(c)) { <div class="warn">Otra carrera</div> }
+                  </td>
+                  <td class="center tnum">{{c.materia.creditos}}</td>
+                  <td>{{c.docente?.nombre ?? c.docenteNombre ?? '—'}}</td>
+                  <td>
+                    <span class="nowrap">{{c.horario}}</span>
+                    @if (cruce(c)) {
+                      <div class="warn">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8v5M12 17h.01"/><path d="M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+                        Cruce de horario
+                      </div>
+                    }
+                  </td>
+                  <td class="mono nowrap">{{c.periodo}}</td>
+                  <td class="center">
+                    @if (cupos(c) > 0) {
+                      <span class="badge" [class.s-warn]="cupos(c) <= 3" title="Cupos disponibles / cupo total">{{cupos(c)}} / {{c.cupo}}</span>
+                    } @else {
+                      <span class="badge s-danger">Agotado</span>
+                    }
+                  </td>
+                  <td>
+                    <div class="cell-actions">
+                      <button class="btn sm" [disabled]="!puedeInscribir(c)" (click)="inscribir(c)">
+                        {{etiqueta(c)}}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="9">
+                    <div class="empty">
+                      <strong>Sin cursos</strong>
+                      <span>No se encontraron cursos con esos criterios. Prueba ampliando la franja horaria o el día.</span>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  </div>`
 })
 export class Buscar implements OnInit {
   private api = inject(Api); private auth = inject(Auth);
   dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  programas = signal<string[]>([]); resultados = signal<any[]>([]); actuales = signal<string[]>([]);
+  resultados = signal<any[]>([]); actuales = signal<string[]>([]);
+  programas = signal<any[]>([]);
   programa = ''; texto = ''; dia = ''; desde = 6; hasta = 22;
-  buscando = signal(false); enviando = signal<number | null>(null); buscado = signal(false); msg = signal(''); ok = signal(false);
+  buscando = signal(false); buscado = signal(false); msg = signal(''); ok = signal(false);
+  habilitada = signal(true);
+  private programaPropio = signal('');
+  enviando = signal<number | null>(null);
 
   ngOnInit() {
-    this.api.materias().subscribe(m => this.programas.set([...new Set(m.map(x => x.programa).filter(Boolean))] as string[]));
-    this.recargar();
+    // La oferta es de todas las carreras; el programa propio solo limita la inscripción.
+    forkJoin({
+      detalle: this.api.detalle(this.auth.estudianteId).pipe(catchError(() => of({}))),
+      programas: this.api.programas().pipe(catchError(() => of([] as any[]))),
+      configuracion: this.api.configuracionInscripcion().pipe(catchError(() => of({ habilitada: true })))
+    }).subscribe({
+      next: ({ detalle, programas, configuracion }) => {
+        const e = detalle?.estudiante ?? {};
+        this.programaPropio.set(e.programaCodigo ?? '');
+        this.actuales.set(inscripcionesDe(detalle)
+          .filter((i: any) => i.estado === 'ACTIVA')
+          .map((i: any) => i.curso?.horario));
+        this.programas.set((programas ?? []).map((p: any) => ({ code: p.code, name: p.name })));
+        this.habilitada.set(configuracion?.habilitada !== false);
+      },
+      error: () => { this.ok.set(false); this.msg.set('No se pudo cargar tu información académica'); }
+    });
   }
+
+  programaPropioNombre() {
+    const p = this.programas().find(x => x.code === this.programaPropio());
+    return p?.name ?? '';
+  }
+
   recargar() {
     this.api.detalle(this.auth.estudianteId).subscribe(d =>
       this.actuales.set(inscripcionesDe(d).filter((i: any) => i.estado === 'ACTIVA').map((i: any) => i.curso?.horario)));
   }
+
   buscar() {
     if (this.texto.trim().length < 4) { this.ok.set(false); return this.msg.set('Ingrese mínimo 4 caracteres'); }
     this.msg.set(''); this.buscando.set(true);
-    this.api.buscarMaterias(this.texto.trim(), this.programa).pipe(
+    this.api.buscarMaterias(this.texto.trim(), undefined, this.programa || undefined).pipe(
       switchMap(ms => ms.length
         ? forkJoin(ms.map(m => this.api.cursos(m.id).pipe(catchError(() => of([])), map(cs => cs.map(c => ({ ...c, materia: m }))))))
         : of([] as any[][])),
-      map(g => g.flat().filter(c => this.pasaFiltros(c)))
+      map(g => g.flat().filter(c => (!this.programa || c.programaCodigo === this.programa) && this.pasaFiltros(c)))
     ).subscribe({
       next: r => { this.resultados.set(r); this.buscado.set(true); this.buscando.set(false); },
       error: () => { this.buscando.set(false); this.ok.set(false); this.msg.set('No se pudo realizar la búsqueda'); }
     });
   }
+
   /** Horario esperado como "Lunes-Miércoles 6:00-8:00" */
   private pasaFiltros(c: any) {
     const h: string = c.horario ?? '';
@@ -63,14 +212,30 @@ export class Buscar implements OnInit {
     const m = h.match(/(\d{1,2}):\d{2}\s*-\s*(\d{1,2}):\d{2}/);
     return m ? +m[1] >= this.desde && +m[2] <= this.hasta : true;
   }
+
   cruce(c: any) { return this.actuales().includes(c.horario); }
+
+  esPropio(c: any) { return !!this.programaPropio() && c.programaCodigo === this.programaPropio(); }
+
+  puedeInscribir(c: any) { return this.habilitada() && this.esPropio(c) && inscribible(c) && this.enviando() === null; }
+
   cupos(c: any) { return cuposDe(c); }
-  puede(c: any) { return inscribible(c); }
-  /** A2: botón deshabilitado mientras se envía y una Idempotency-Key nueva por intento. */
+
+  etiqueta(c: any) {
+    if (!this.esPropio(c)) return 'Otro programa';
+    if (!this.habilitada()) return 'Cerrada';
+    if (this.enviando() === c.id) return 'Inscribiendo…';
+    if (c.estado === 'INACTIVO') return 'Curso cerrado';
+    return cuposDe(c) > 0 ? 'Inscribir' : 'Sin cupo';
+  }
+
   inscribir(c: any) {
+    if (!this.habilitada()) { this.ok.set(false); return this.msg.set('No está en fecha disponible para inscripción de materias'); }
+    if (!this.esPropio(c)) { this.ok.set(false); return this.msg.set('Solo puedes inscribir materias de tu programa'); }
     if (this.enviando() !== null) return;
+    // A2: botón deshabilitado mientras se envía y una Idempotency-Key nueva por intento.
     this.enviando.set(c.id);
-    this.api.inscribir(this.auth.estudianteId, c.id, c.periodo, nuevaClave()).subscribe({
+    this.api.inscribir(c.id, c.periodo, nuevaClave()).subscribe({
       next: () => { this.enviando.set(null); this.ok.set(true); this.msg.set(`Inscrito en ${c.materia.nombre}`); this.recargar(); this.buscar(); },
       error: e => { this.enviando.set(null); this.ok.set(false); this.msg.set(mensajeInscripcion(e)); if (e.status === 409) this.buscar(); }
     });
