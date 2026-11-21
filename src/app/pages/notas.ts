@@ -1,6 +1,7 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { Api } from '../core/api';
 import { Auth } from '../core/auth';
+import { inscripcionesDe } from '../core/consistencia';
 
 @Component({
   selector: 'app-notas',
@@ -19,7 +20,7 @@ export class Notas implements OnInit {
   ngOnInit() {
     this.api.detalle(this.auth.estudianteId).subscribe({
       next: d => {
-        const all: any[] = (d.inscripciones ?? []).filter((i: any) => i.estado !== 'RETIRADA');
+        const all: any[] = inscripcionesDe(d).filter((i: any) => i.estado !== 'RETIRADA');
         const per = all.map(i => i.periodo).sort().pop() ?? '';
         const [anio, sem] = per.split('-');
         this.periodo.set(per ? `${sem === '1' ? 'PRIMER' : 'SEGUNDO'} SEMESTRE DE ${anio}` : '');

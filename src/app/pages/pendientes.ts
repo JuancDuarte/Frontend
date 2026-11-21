@@ -2,6 +2,7 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import { Api } from '../core/api';
 import { Auth } from '../core/auth';
+import { inscripcionesDe } from '../core/consistencia';
 
 @Component({
   selector: 'app-pendientes',
@@ -19,7 +20,7 @@ export class Pendientes implements OnInit {
   ngOnInit() {
     forkJoin([this.api.materias(), this.api.detalle(this.auth.estudianteId)]).subscribe(([ms, d]) => {
       // Inscripciones solo trae el nombre del curso: se compara por nombre de materia
-      const vistas = new Set((d.inscripciones ?? []).filter((i: any) => i.estado !== 'RETIRADA').map((i: any) => i.curso?.nombre));
+      const vistas = new Set(inscripcionesDe(d).filter((i: any) => i.estado !== 'RETIRADA').map((i: any) => i.curso?.nombre));
       this.pendientes.set(ms.filter(m => !vistas.has(m.nombre)));
     });
   }

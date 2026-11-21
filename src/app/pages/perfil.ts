@@ -32,7 +32,7 @@ const EST: any = { active: 'MATRICULADO', inactive: 'INACTIVO' };
   </fieldset>
   @if (auth.esDocente) {
    <div class="card"><h3>Mis cursos</h3><table><thead><tr><th>Curso</th><th>Materia</th><th>Horario</th><th>Periodo</th><th>Cupo</th></tr></thead><tbody>
-    @for (c of cursos(); track c.id) { <tr><td>{{c.id}}</td><td>{{c.nombre ?? c.materia?.nombre}}</td><td>{{c.horario}}</td><td>{{c.periodo}}</td><td>{{c.cupo}}</td></tr> }
+    @for (c of cursos(); track c.id) { <tr><td>{{c.id}}</td><td>{{c.nombre ?? c.materia?.nombre}}</td><td>{{c.horario}}</td><td>{{c.periodo}}</td><td>{{c.cuposDisponibles ?? c.cupo}} / {{c.cupo}}</td></tr> }
     @empty { <tr><td colspan="5" class="muted">Sin cursos asignados</td></tr> }</tbody></table></div> }`
 })
 export class Perfil implements OnInit {

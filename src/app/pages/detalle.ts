@@ -2,6 +2,7 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Api } from '../core/api';
 import { Auth } from '../core/auth';
+import { esParcial, inscripcionesDe } from '../core/consistencia';
 
 @Component({
   selector: 'app-detalle', imports: [RouterLink],
@@ -11,6 +12,7 @@ import { Auth } from '../core/auth';
   <h1>Detalle del estudiante</h1>
   @if (error()) { <div class="err">{{error()}}</div> }
   @if (d(); as d) {
+   @if (parcial(d)) { <div class="warn" style="padding:10px 0">⚠ Algunos datos no están disponibles en este momento (respuesta parcial).</div> }
    <div class="card"><h3>Información</h3><div class="top"><div>
      @if (d.estudiante?.fotoUrl ?? d.fotoUrl) { <img class="foto" [src]="d.estudiante?.fotoUrl ?? d.fotoUrl" alt="Foto"> } @else { <div class="foto"></div> }
      @if (auth.esAdmin || auth.estudianteId === id) {
@@ -19,19 +21,24 @@ import { Auth } from '../core/auth';
      <dl><dt>Nombre</dt><dd>{{d.estudiante?.firstName}} {{d.estudiante?.lastName}}</dd><dt>Documento</dt><dd>{{d.estudiante?.documentType}} {{d.estudiante?.documentNumber}}</dd>
       <dt>Correo</dt><dd>{{d.estudiante?.email}}</dd><dt>Programa</dt><dd>{{d.estudiante?.programa}}</dd><dt>Estado</dt><dd>{{d.estudiante?.status}}</dd></dl></div></div>
    <div class="card"><h3>Inscripciones</h3><table><thead><tr><th>Periodo</th><th>Curso</th><th>Docente</th><th>Horario</th><th>Estado</th><th>Notas</th></tr></thead><tbody>
-    @for (i of d.inscripciones; track i.id) {
-     <tr><td>{{i.periodo}}</td><td>{{i.curso?.nombre}}</td><td>{{i.curso?.docente?.nombre}}</td><td>{{i.curso?.horario}}</td><td>{{i.estado}}</td>
+    @if (d.inscripciones === 'NO_DISPONIBLE') { <tr><td colspan="6" class="muted">Las inscripciones no están disponibles en este momento</td></tr> }
+    @for (i of lista(d); track i.id) {
+     <tr><td>{{i.periodo}}</td><td>{{i.curso?.nombre ?? 'No disponible'}} @if (i.curso?.estado === 'INACTIVO') { <span class="muted">(cerrado)</span> }</td><td>{{i.curso?.docente?.nombre}}</td><td>{{i.curso?.horario}}</td><td>{{i.estado}}</td>
      <td>@for (n of i.notas; track $index) { <div>{{n.tipo}}: {{n.valor}}</div> } @empty { — }</td></tr>
-    } @empty { <tr><td colspan="6" class="muted">Sin inscripciones</td></tr> }</tbody></table></div> }`
+    } @empty { @if (d.inscripciones !== 'NO_DISPONIBLE') { <tr><td colspan="6" class="muted">Sin inscripciones</td></tr> } }</tbody></table></div> }`
 })
 export class Detalle implements OnInit {
   private api = inject(Api); private route = inject(ActivatedRoute); auth = inject(Auth);
   id = Number(this.route.snapshot.paramMap.get('id'));
   d = signal<any>(null); error = signal(''); msg = signal(''); ok = signal(false);
   ngOnInit() { this.cargar(); }
+  lista(d: any) { return inscripcionesDe(d); }
+  parcial(d: any) { return esParcial(d); }
   cargar() {
     this.api.detalle(this.id).subscribe({ next: d => this.d.set(d),
-      error: e => this.error.set(e.status === 403 ? 'No tienes permiso para ver este estudiante' : 'No se pudo cargar el detalle') });
+      error: e => this.error.set(e.status === 403 ? 'No tienes permiso para ver este estudiante'
+        : e.status === 404 ? 'El estudiante no existe'
+        : e.status === 503 ? 'El módulo Estudiantes no está disponible, intenta más tarde' : 'No se pudo cargar el detalle') });
   }
   subir(files: FileList | null) {
     const f = files?.[0]; if (!f) return;

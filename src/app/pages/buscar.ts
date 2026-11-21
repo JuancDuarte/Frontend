@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { Api } from '../core/api';
 import { Auth } from '../core/auth';
+import { cuposDe, inscribible, inscripcionesDe, mensajeInscripcion, nuevaClave } from '../core/consistencia';
 
 const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
@@ -23,8 +24,8 @@ const norm = (s: string) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/
   @if (buscado()) { <div class="card"><h3>Cursos encontrados</h3><div style="overflow-x:auto"><table><thead><tr><th>Código</th><th>Asignatura</th><th>Créditos</th><th>Docente</th><th>Horario</th><th>Periodo</th><th>Cupo</th><th></th></tr></thead><tbody>
     @for (c of resultados(); track c.id) {
       <tr><td>{{c.materia.codigo}}</td><td>{{c.materia.nombre}}</td><td>{{c.materia.creditos}}</td><td>{{c.docente?.nombre ?? c.docenteNombre}}</td>
-      <td>{{c.horario}} @if (cruce(c)) { <div class="warn">⚠ Cruce con otra asignatura</div> }</td><td>{{c.periodo}}</td><td>{{c.cupo}}</td>
-      <td><button class="btn sm" [disabled]="c.cupo <= 0" (click)="inscribir(c)">Inscribir</button></td></tr>
+      <td>{{c.horario}} @if (cruce(c)) { <div class="warn">⚠ Cruce con otra asignatura</div> }</td><td>{{c.periodo}}</td><td>{{cupos(c)}} / {{c.cupo}} @if (c.estado === 'INACTIVO') { <div class="warn">Cerrado</div> }</td>
+      <td><button class="btn sm" [disabled]="enviando() !== null || !puede(c)" (click)="inscribir(c)">{{enviando() === c.id ? 'Inscribiendo…' : 'Inscribir'}}</button></td></tr>
     } @empty { <tr><td colspan="8" class="muted">No se encontraron cursos con esos criterios</td></tr> }</tbody></table></div></div> }`
 })
 export class Buscar implements OnInit {
@@ -32,7 +33,7 @@ export class Buscar implements OnInit {
   dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   programas = signal<string[]>([]); resultados = signal<any[]>([]); actuales = signal<string[]>([]);
   programa = ''; texto = ''; dia = ''; desde = 6; hasta = 22;
-  buscando = signal(false); buscado = signal(false); msg = signal(''); ok = signal(false);
+  buscando = signal(false); enviando = signal<number | null>(null); buscado = signal(false); msg = signal(''); ok = signal(false);
 
   ngOnInit() {
     this.api.materias().subscribe(m => this.programas.set([...new Set(m.map(x => x.programa).filter(Boolean))] as string[]));
@@ -40,7 +41,7 @@ export class Buscar implements OnInit {
   }
   recargar() {
     this.api.detalle(this.auth.estudianteId).subscribe(d =>
-      this.actuales.set((d.inscripciones ?? []).filter((i: any) => i.estado === 'ACTIVA').map((i: any) => i.curso?.horario)));
+      this.actuales.set(inscripcionesDe(d).filter((i: any) => i.estado === 'ACTIVA').map((i: any) => i.curso?.horario)));
   }
   buscar() {
     if (this.texto.trim().length < 4) { this.ok.set(false); return this.msg.set('Ingrese mínimo 4 caracteres'); }
@@ -63,10 +64,15 @@ export class Buscar implements OnInit {
     return m ? +m[1] >= this.desde && +m[2] <= this.hasta : true;
   }
   cruce(c: any) { return this.actuales().includes(c.horario); }
+  cupos(c: any) { return cuposDe(c); }
+  puede(c: any) { return inscribible(c); }
+  /** A2: botón deshabilitado mientras se envía y una Idempotency-Key nueva por intento. */
   inscribir(c: any) {
-    this.api.inscribir(this.auth.estudianteId, c.id, c.periodo).subscribe({
-      next: () => { this.ok.set(true); this.msg.set(`Inscrito en ${c.materia.nombre}`); this.recargar(); this.buscar(); },
-      error: e => { this.ok.set(false); this.msg.set(e.error?.message ?? 'No se pudo inscribir'); }
+    if (this.enviando() !== null) return;
+    this.enviando.set(c.id);
+    this.api.inscribir(this.auth.estudianteId, c.id, c.periodo, nuevaClave()).subscribe({
+      next: () => { this.enviando.set(null); this.ok.set(true); this.msg.set(`Inscrito en ${c.materia.nombre}`); this.recargar(); this.buscar(); },
+      error: e => { this.enviando.set(null); this.ok.set(false); this.msg.set(mensajeInscripcion(e)); if (e.status === 409) this.buscar(); }
     });
   }
 }

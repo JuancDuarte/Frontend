@@ -19,8 +19,10 @@ export class Api {
     if (periodo) params.periodo = periodo;
     return this.http.get<any>(`${B}/api/materias/cursos`, { params }).pipe(map(r => (r.content ?? r) as any[]));
   }
-  inscribir(estudianteId: number, cursoId: number, periodo: string) {
-    return this.http.post<any>(`${B}/api/inscripciones`, { estudianteId, cursoId, periodo });
+  /** idempotencyKey: una por intento; si la petición se repite, el backend no crea otra inscripción. */
+  inscribir(estudianteId: number, cursoId: number, periodo: string, idempotencyKey: string) {
+    return this.http.post<any>(`${B}/api/inscripciones`, { estudianteId, cursoId, periodo },
+      { headers: { 'Idempotency-Key': idempotencyKey } });
   }
 
   // ---- Archivos (ajustar rutas cuando el grupo publique estos endpoints) ----
