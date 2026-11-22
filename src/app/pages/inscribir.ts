@@ -190,10 +190,19 @@ export class Inscribir implements OnInit {
         this.programaCodigo = e.programaCodigo ?? '';
         this.sede.set(e.sede ?? '');
         this.horario.set(e.horario ?? '');
+        // Sin código de programa no se puede filtrar la oferta: mejor no mostrar nada que
+        // arriesgarse a listar (y permitir inscribir) materias de otras carreras.
+        if (!this.programaCodigo) return of(null);
         return forkJoin({ detalle: of(detalle), materias: this.api.materias(this.programaCodigo) });
       })
     ).subscribe({
-      next: ({ materias, detalle }) => {
+      next: r => {
+        if (!r) {
+          this.cargando.set(false);
+          this.msg.set('No se pudo determinar tu programa académico. Contacta a registro.');
+          return;
+        }
+        const { materias, detalle } = r;
         const inscripciones: any[] = inscripcionesDe(detalle);
         const per = inscripciones.map(i => i.periodo).sort().pop() ?? '';
         const programa = this.programaCodigo;
@@ -222,7 +231,7 @@ export class Inscribir implements OnInit {
         this.api.cursosPeriodo(per || undefined, programa).subscribe({
           next: cs => {
             // Defensa en profundidad: el backend ya filtra, pero no se muestra nada de otro programa.
-            const delPrograma = cs.filter((c: any) => !programa || c.programaCodigo === programa);
+            const delPrograma = cs.filter((c: any) => c.programaCodigo === programa);
             // Si el estudiante no tiene historial, se toma el periodo más reciente de la oferta.
             const periodo = per || delPrograma.map((c: any) => c.periodo).sort().pop() || '';
             this.periodo.set(periodo);

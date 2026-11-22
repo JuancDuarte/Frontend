@@ -1,5 +1,5 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { map, switchMap } from 'rxjs';
+import { map, of, switchMap } from 'rxjs';
 import { Api } from '../core/api';
 import { Auth } from '../core/auth';
 import { inscripcionesDe } from '../core/consistencia';
@@ -84,16 +84,23 @@ export class Pendientes implements OnInit {
     this.api.detalle(this.auth.estudianteId).pipe(
       switchMap(d => {
         const codigo = d.estudiante?.programaCodigo ?? '';
-        // Solo se listan materias del pensum del estudiante, nunca de otras carreras.
-        return this.api.materias(codigo || undefined).pipe(map(ms => ({ ms, d, codigo })));
+        // Sin código de programa no se puede saber el pensum: nunca se muestra el catálogo completo.
+        if (!codigo) return of({ ms: [] as any[], d, codigo });
+        return this.api.materias(codigo).pipe(map(ms => ({ ms, d, codigo })));
       })
     ).subscribe({
       next: ({ ms, d, codigo }) => {
+        if (!codigo) {
+          this.pendientes.set([]);
+          this.cargando.set(false);
+          this.msg.set('No se pudo determinar tu programa académico. Contacta a registro.');
+          return;
+        }
         // Inscripciones solo trae el nombre del curso: se compara por nombre de materia
         const vistas = new Set(inscripcionesDe(d)
           .filter((i: any) => i.estado !== 'RETIRADA' && i.estado !== 'CANCELADA')
           .map((i: any) => i.curso?.nombre));
-        const delPrograma = codigo ? ms.filter((m: any) => m.programaCodigo === codigo) : ms;
+        const delPrograma = ms.filter((m: any) => m.programaCodigo === codigo);
         this.pendientes.set(delPrograma.filter((m: any) => !vistas.has(m.nombre)));
         this.cargando.set(false);
       },
